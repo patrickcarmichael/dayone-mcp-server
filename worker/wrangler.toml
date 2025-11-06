@@ -1,0 +1,41 @@
+# Cloudflare Worker Configuration
+
+name = "dayone-mcp-server"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+# Account ID - get this from Cloudflare dashboard
+# account_id = "your-account-id-here"
+
+# Workers configuration
+[build]
+command = "npm run build"
+
+# Environment variables (set these via `wrangler secret put`)
+# These are just placeholders - actual values should be set via CLI
+[vars]
+# BRIDGE_URL will be set after Cloudflare Tunnel is created
+# Example: "https://your-tunnel-id.cfargotunnel.com"
+
+# Secrets (use `wrangler secret put` to set these)
+# - MCP_API_KEYS: Comma-separated API keys for MCP clients
+# - BRIDGE_AUTH_TOKEN: Token for authenticating with bridge service
+# - BRIDGE_URL: URL of bridge service via Cloudflare Tunnel
+
+# Example commands to set secrets:
+# wrangler secret put MCP_API_KEYS
+# wrangler secret put BRIDGE_AUTH_TOKEN
+# wrangler secret put BRIDGE_URL
+
+# Optional: Custom domain
+# routes = [
+#   { pattern = "dayone.yourdomain.com", custom_domain = true }
+# ]
+
+# Optional: Scheduled event for cleanup (runs every hour)
+[triggers]
+crons = ["0 * * * *"]
+
+# Development configuration
+[env.dev]
+name = "dayone-mcp-server-dev"
