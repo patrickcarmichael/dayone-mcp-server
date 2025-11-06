@@ -1,0 +1,10 @@
+{
+  "name": "dayone-shared",
+  "version": "1.0.0",
+  "description": "Shared types for Day One MCP server",
+  "main": "types.ts",
+  "type": "module",
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}

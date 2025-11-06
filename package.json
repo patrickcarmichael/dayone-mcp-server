@@ -1,0 +1,21 @@
+{
+  "name": "dayone-mcp-server",
+  "version": "1.0.0",
+  "description": "Custom remote MCP server for Day One using Cloudflare Workers",
+  "private": true,
+  "workspaces": [
+    "worker",
+    "bridge",
+    "shared"
+  ],
+  "scripts": {
+    "dev:worker": "npm run dev --workspace=worker",
+    "dev:bridge": "npm run dev --workspace=bridge",
+    "deploy:worker": "npm run deploy --workspace=worker",
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces"
+  },
+  "keywords": ["mcp", "day-one", "cloudflare-workers", "journal"],
+  "author": "",
+  "license": "MIT"
+}

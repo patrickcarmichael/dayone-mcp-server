@@ -1,115 +1,229 @@
-# Day One MCP Server
+# Day One Remote MCP Server
 
-A Model Context Protocol (MCP) server that provides AI assistants with programmatic access to Day One journals through stdio communication.
+A **remote** Model Context Protocol (MCP) server that provides AI assistants with programmatic access to Day One journals from anywhere using Cloudflare Workers.
 
 ## What is this?
 
-The Day One MCP Server is provided as part of the Day One Mac application and implements the [Model Context Protocol](https://modelcontextprotocol.io/) to expose Day One journal operations as tools that AI assistants can invoke.
+This is a **custom remote MCP server** for Day One that allows you to access your journals from any MCP client, anywhere in the world. Unlike the official Day One MCP server (which runs locally via stdio), this implementation uses:
+
+- **Cloudflare Workers** - Global edge deployment for fast, reliable access
+- **Cloudflare Tunnel** - Secure connection to your local Day One data
+- **HTTP Transport** - Remote access via HTTPS endpoints
+- **Token Authentication** - Secure API key-based access control
 
 **This repository provides:**
-- 📦 Distribution of the `.mcpb` bundle for easy installation in MCP clients
-- 📖 Documentation for setup and usage
+- 🌐 Remote MCP server implementation
+- 🔐 Secure authentication and rate limiting
+- 🚀 One-command deployment scripts
+- 📖 Complete setup and deployment documentation
 
 **Capabilities:**
 - 📝 Programmatic journal entry creation and updates
 - 🔍 Full-text search across journal entries
 - 🏷️ Tag and metadata management
 - 📅 Date-based entry retrieval and filtering
+- 🌍 Access from anywhere with internet connection
 
-## Technical Overview
+## Architecture
 
-The MCP server runs as a local stdio-based process that communicates via JSON-RPC 2.0:
+```
+┌─────────────────┐
+│  MCP Client     │ (Claude Desktop, anywhere)
+└────────┬────────┘
+         │ HTTPS + API Key
+         ▼
+┌──────────────────────────┐
+│  Cloudflare Worker       │ (Global Edge)
+│  - MCP Protocol Handler  │
+│  - Authentication        │
+│  - Rate Limiting         │
+└────────┬─────────────────┘
+         │ Cloudflare Tunnel (HTTPS)
+         ▼
+┌──────────────────────────┐
+│  Bridge Service          │ (Your Mac)
+│  - Day One CLI Wrapper   │
+│  - Local HTTP Server     │
+└────────┬─────────────────┘
+         │ CLI Commands
+         ▼
+┌──────────────────────────┐
+│  Day One App + CLI       │ (Your Mac)
+└──────────────────────────┘
+```
 
-- **Transport**: stdio (standard input/output)
-- **Data Access**: Direct read/write to Day One's Core Data store
-- **Security**: Journal-level access control with opt-in configuration
+## Why Remote MCP?
 
-> **Privacy Note:** The MCP server runs entirely on your local machine. However, MCP clients will send retrieved journal content to their respective LLM providers for processing.
+The official Day One MCP server uses stdio transport, which only works locally. This remote implementation provides:
+
+- ✅ **Access from anywhere** - Not limited to your local machine
+- ✅ **Multiple devices** - Use from any MCP client with the API key
+- ✅ **Cloud integration** - Works with cloud-hosted AI assistants
+- ✅ **Better security** - Token-based auth and rate limiting
+- ✅ **Zero cost** - Runs on Cloudflare's free tier
+- ✅ **No port forwarding** - Uses Cloudflare Tunnel
 
 ## Requirements
 
-- **macOS only** - The Day One MCP server is currently available only for Day One for Mac
-- **Day One Mac app** - Available on the [Mac App Store](https://apps.apple.com/us/app/day-one/id1055511498?mt=12)
-- **Day One CLI** - Required for MCP server functionality
+### On Your Mac
+- **macOS** - For running Day One
+- **Day One for Mac** - [Mac App Store](https://apps.apple.com/us/app/day-one/id1055511498?mt=12)
+- **Day One CLI** - Installed from Day One app
+- **Node.js 18+** - For running the bridge service
+- **Homebrew** - For installing cloudflared
 
-## Installation
+### Cloudflare
+- Free Cloudflare account
+- `wrangler` CLI (installed automatically)
 
-### Step 1: Install Day One for Mac
+## Quick Start
 
-Download and install Day One from the Mac App Store:
-
-**[Day One on Mac App Store](https://apps.apple.com/us/app/day-one/id1055511498?mt=12)**
-
-### Step 2: Install Day One CLI
-
-The MCP server requires the Day One CLI. Install it by running:
+### 1. Install Prerequisites
 
 ```bash
+# Install Node.js
+brew install node
+
+# Install Cloudflare Tunnel
+brew install cloudflare/cloudflare/cloudflared
+
+# Install Wrangler
+npm install -g wrangler
+
+# Install Day One CLI
 sudo bash /Applications/Day\ One.app/Contents/Resources/install_cli.sh
 ```
 
-This installs the `dayone` command to `/usr/local/bin/dayone`.
-
-Verify installation:
-```bash
-/usr/local/bin/dayone --version
-```
-
-### Step 3: Configure MCP Client
-
-The Day One MCP server is invoked via the `dayone mcp` command, which starts a stdio-based MCP server process.
-
-#### For Claude Desktop
-
-Download and install the pre-built `.mcpb` bundle:
-
-1. Download the latest `.mcpb` file from [Releases](https://github.com/automattic/dayone-mcp-server/releases)
-2. Open Claude Desktop → Settings → Extensions
-3. Drag and drop the `.mcpb` file to install
-
-#### For Claude Code CLI
+### 2. Clone and Setup
 
 ```bash
-claude mcp add --scope user --transport stdio dayone-cli /usr/local/bin/dayone mcp
+# Clone repository
+git clone https://github.com/your-username/dayone-mcp-server.git
+cd dayone-mcp-server
+
+# Run automated setup
+./scripts/setup-bridge.sh
 ```
 
-#### For Cursor
+### 3. Configure Cloudflare Tunnel
 
-Add to `~/.cursor/mcp.json`:
+```bash
+# Authenticate with Cloudflare
+cloudflared tunnel login
+
+# Create tunnel
+cloudflared tunnel create dayone-bridge
+
+# Configure tunnel (follow prompts)
+# See docs/CLOUDFLARE_TUNNEL_SETUP.md for details
+```
+
+### 4. Deploy Worker
+
+```bash
+# Set secrets and deploy
+./scripts/deploy-worker.sh
+```
+
+### 5. Configure Day One Access
+
+1. Open **Day One** → **Preferences** → **Labs**
+2. Enable **"Mac CLI MCP Server"**
+3. Click **"MCP Access Control"**
+4. Toggle on journals you want accessible
+
+### 6. Configure Your MCP Client
+
+#### Claude Desktop
+
+Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 ```json
 {
   "mcpServers": {
-    "dayone-cli": {
-      "command": "/usr/local/bin/dayone",
-      "args": ["mcp"],
-      "transport": "stdio"
+    "dayone": {
+      "url": "https://dayone-mcp-server.YOUR_ACCOUNT.workers.dev",
+      "transport": {
+        "type": "http"
+      },
+      "headers": {
+        "Authorization": "Bearer YOUR_MCP_API_KEY"
+      }
     }
   }
 }
 ```
 
-#### Manual Configuration for Other MCP Clients
+#### Claude Code CLI
 
-Most MCP clients accept stdio server configurations. Configure with:
+```bash
+claude mcp add \
+  --scope user \
+  --transport http \
+  --header "Authorization: Bearer YOUR_MCP_API_KEY" \
+  dayone \
+  https://dayone-mcp-server.YOUR_ACCOUNT.workers.dev
+```
 
-- **command**: `/usr/local/bin/dayone`
-- **args**: `["mcp"]`
-- **transport**: `stdio`
+#### Cursor
 
-The server communicates via JSON-RPC 2.0 over stdin/stdout. Refer to your MCP client's documentation for configuration specifics.
+Edit `~/.cursor/mcp.json`:
 
-### Step 4: Configure Journal Access
+```json
+{
+  "mcpServers": {
+    "dayone": {
+      "url": "https://dayone-mcp-server.YOUR_ACCOUNT.workers.dev",
+      "transport": "http",
+      "headers": {
+        "Authorization": "Bearer YOUR_MCP_API_KEY"
+      }
+    }
+  }
+}
+```
 
-For security and privacy, you must explicitly grant MCP access to journals:
+### 7. Test It!
 
-1. **Open Day One** on your Mac
-2. **Go to Preferences → Labs**
-3. **Enable** "Mac CLI MCP Server"
-4. **Click** "MCP Access Control"
-5. **Toggle on** the journals you want to make accessible
+Ask your AI assistant:
+```
+"List my Day One journals"
+"Create a journal entry about today"
+"Search for entries about vacation"
+```
 
-> **Important:** Only enabled journals will be visible to AI assistants. You have complete control over access.
+## Detailed Documentation
+
+- **[Setup Guide](docs/SETUP.md)** - Detailed installation steps
+- **[Cloudflare Tunnel Setup](docs/CLOUDFLARE_TUNNEL_SETUP.md)** - Tunnel configuration
+- **[Deployment Guide](docs/DEPLOYMENT.md)** - Complete deployment process
+
+## Project Structure
+
+```
+dayone-mcp-server/
+├── bridge/              # Local bridge service (Node.js)
+│   ├── src/
+│   │   ├── server.ts   # HTTP server
+│   │   └── dayone.ts   # Day One CLI wrapper
+│   └── package.json
+├── worker/              # Cloudflare Worker (Edge)
+│   ├── src/
+│   │   ├── index.ts    # Worker entry point
+│   │   ├── mcp-handler.ts  # MCP protocol
+│   │   └── auth.ts     # Authentication
+│   └── wrangler.toml
+├── shared/              # Shared TypeScript types
+│   └── types.ts
+├── scripts/             # Deployment scripts
+│   ├── setup-bridge.sh
+│   ├── deploy-worker.sh
+│   └── generate-tokens.sh
+└── docs/               # Documentation
+    ├── SETUP.md
+    ├── DEPLOYMENT.md
+    └── CLOUDFLARE_TUNNEL_SETUP.md
+```
 
 ## MCP Tools
 
@@ -185,22 +299,155 @@ Updates an existing entry's content or metadata.
 
 ## Security Model
 
-### Password Lock Protection
-The MCP server refuses to start when Day One's password lock is enabled, returning an error on stderr. This prevents unauthorized access when the Mac is unlocked but Day One requires authentication.
+This implementation includes multiple layers of security:
 
-### Journal-Level Access Control
-Access is controlled at the journal level via Day One's preferences. The server only exposes journals with the `isMcpAccessAllowed` flag set to `true`. All operations validate journal access before executing.
+### 1. Token-Based Authentication
+- **MCP API Keys** - Clients must provide valid API key
+- **Bridge Authentication** - Worker authenticates to bridge service
+- **Secure Token Generation** - Use `./scripts/generate-tokens.sh`
 
-### Local-Only Execution
-The MCP server process runs locally with no network I/O. All data access is performed directly against Day One's Core Data SQLite store. However, note that MCP clients will typically send retrieved content to remote LLM APIs.
+### 2. Cloudflare Tunnel
+- **Zero Trust Network** - No port forwarding required
+- **Encrypted Connection** - TLS 1.3 end-to-end
+- **No IP Exposure** - Your Mac's IP stays private
 
+### 3. Rate Limiting
+- **Request Limits** - 100 requests per minute per IP
+- **DDoS Protection** - Cloudflare edge protection
+- **Resource Management** - Prevents abuse
+
+### 4. Journal-Level Access Control
+- **Opt-In Model** - Only enabled journals are accessible
+- **Day One Preferences** - Control access per journal
+- **Validation** - All operations check journal permissions
+
+### 5. Password Lock Protection
+The bridge service respects Day One's password lock. If enabled, Day One CLI operations will fail gracefully.
+
+### Best Practices
+- 🔐 Use strong, unique API keys (32+ bytes)
+- 🔄 Rotate tokens regularly
+- 📊 Monitor access logs
+- 🚫 Only enable necessary journal access
+- 🔒 Keep `.env` and secrets secure
+
+## Cost
+
+Running this setup costs **$0/month** using free tiers:
+
+- ✅ Cloudflare Workers - 100,000 requests/day free
+- ✅ Cloudflare Tunnel - Unlimited, free
+- ✅ Day One - Existing subscription
+- ✅ Infrastructure - Your Mac (no cloud VMs needed)
+
+Paid options (optional):
+- Cloudflare Workers Pro ($5/mo) - 10M requests/day, lower latency
+- Custom domain - Free with Cloudflare
+
+## Troubleshooting
+
+### Bridge service won't start
+```bash
+# Check Day One CLI
+/usr/local/bin/dayone --version
+
+# Check logs
+tail -f /tmp/dayone-bridge.log
+```
+
+### Tunnel connection issues
+```bash
+# Check tunnel status
+cloudflared tunnel info dayone-bridge
+
+# View logs
+sudo tail -f /Library/Logs/com.cloudflare.cloudflared.err.log
+```
+
+### Worker not responding
+```bash
+# View logs
+cd worker && wrangler tail
+
+# Verify secrets
+wrangler secret list
+```
+
+### MCP client can't connect
+1. Verify worker URL is correct
+2. Check API key in client config
+3. Test worker with curl
+4. Check client logs
+
+See [DEPLOYMENT.md](docs/DEPLOYMENT.md) for detailed troubleshooting.
+
+## Development
+
+### Local Testing
+
+```bash
+# Terminal 1: Start bridge
+cd bridge && npm run dev
+
+# Terminal 2: Start worker locally
+cd worker && npm run dev
+
+# Terminal 3: Test
+curl -X POST http://localhost:8787 \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_KEY" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}'
+```
+
+### Running Tests
+
+```bash
+# Run all tests
+npm test
+
+# Test bridge only
+cd bridge && npm test
+
+# Test worker only
+cd worker && npm test
+```
+
+## Contributing
+
+Contributions welcome! Please:
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+## License
+
+MIT License - see [LICENSE](LICENSE) file for details
+
+## Acknowledgments
+
+- Day One team for the excellent journaling app
+- Cloudflare for Workers and Tunnel
+- Model Context Protocol community
+
+## Disclaimer
+
+This is a **custom, unofficial** implementation. It is not affiliated with, endorsed by, or supported by Automattic, Inc. or Day One.
+
+For the official Day One MCP server (local stdio-based), see the [Day One Help Center](https://dayoneapp.com/guides/).
 
 ## Support
 
-For issues or questions:
+For issues with this remote implementation:
+- 📖 Check [documentation](docs/)
+- 🐛 [Report an Issue](https://github.com/your-username/dayone-mcp-server/issues)
+- 💬 [Discussions](https://github.com/your-username/dayone-mcp-server/discussions)
+
+For Day One app support:
 - 📖 [Day One Help Center](https://dayoneapp.com/guides/)
-- 🐛 [Report an Issue](https://github.com/automattic/dayone-mcp-server/issues)
 
 ---
 
-© 2025 Automattic, Inc. Day One is a registered trademark of Automattic, Inc.
+**Note**: This project enables remote access to your Day One journals. Please ensure you understand the security implications and use strong authentication tokens.

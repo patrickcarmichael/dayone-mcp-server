@@ -1,0 +1,18 @@
+{
+  "name": "dayone-worker",
+  "version": "1.0.0",
+  "description": "Cloudflare Worker MCP endpoint for Day One",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.5.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20231218.0",
+    "wrangler": "^3.22.1",
+    "typescript": "^5.3.3"
+  }
+}
